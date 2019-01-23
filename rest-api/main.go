@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"github.com/gorilla/mux"
 )
 
@@ -17,17 +18,18 @@ type IPAddress struct {
 	Longitude	string		`json:"longitude"`
 }
 
-func main() {
+var addresses []IPAddress
 
+func main() {
+	ReadCsv()
 	router := mux.NewRouter()
-	router.HandleFunc("/people", GetPeople).Methods("GET")
+	router.HandleFunc("/getAddress/{id}", GetAddress).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
 
-func GetPeople(w http.ResponseWriter, r *http.Request) {
+func ReadCsv() {
 	csvFile, _ := os.Open("ipv4.csv")
 	reader := csv.NewReader(bufio.NewReader(csvFile))
-	var addresses []IPAddress
 	for {
 		line, error := reader.Read()
 		if error == io.EOF {
@@ -42,18 +44,18 @@ func GetPeople(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	// addressJson, _ := json.Marshal(addresses)
-	json.NewEncoder(w).Encode(addresses)
 }
 
-type Person struct {
-    ID        string   `json:"id,omitempty"`
-    Firstname string   `json:"firstname,omitempty"`
-    Lastname  string   `json:"lastname,omitempty"`
-	Address   *Address `json:"address,omitempty"`
-}
-type Address struct {
-    City  string `json:"city,omitempty"`
-    State string `json:"state,omitempty"`
+func GetAddress(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	var id, err = strconv.Atoi(params["id"])
+	if err!= nil {
+		log.Fatal("error on converting int")
+	}
+	var address = FindAddressByIndex(id)
+	json.NewEncoder(w).Encode(address)
 }
 
-var people []Person
+func FindAddressByIndex(index int) IPAddress {
+	return addresses[index]
+}
