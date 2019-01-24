@@ -40,7 +40,7 @@ var addresses []IPAddress
 func main() {
 	ReadCsv()
 	router := mux.NewRouter()
-	router.HandleFunc("/getAddress/{id}", GetAddress).Methods("GET")
+	router.HandleFunc("/getAddress/{id}", GetAddress).Methods("GET", "OPTIONS")
 	router.HandleFunc("/getAddressesByBoundary/{swLat}/{swLon}/{neLat}/{neLon}", GetAddressesByBoundary).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
@@ -86,6 +86,9 @@ func FindAddressByIndex(index int) IPAddress {
 }
 
 func GetAddressesByBoundary(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 	params := mux.Vars(r)
 	var swLat, swLon float64
 	swLat, sLatErr := strconv.ParseFloat(params["swLat"], 64)
