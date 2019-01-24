@@ -14,9 +14,26 @@ import (
 
 type IPAddress struct {
 	Network		string		`json:"id"`
-	Latitude	string		`json:"latitude"`
-	Longitude	string		`json:"longitude"`
+	Latitude	float64		`json:"latitude"`
+	Longitude	float64		`json:"longitude"`
 }
+
+type GeoJson struct {
+	Type		string		`json:"type"`
+	Features	[]GeoJson	`json:"features,omitempty"`
+	Geometry	Geometry	`json:"geometry,omitempty"`
+	Properties	Properties	`json:"properties,omitempty"`
+}
+
+type Geometry struct {
+	Type		string		`json:"type"`
+	Coordinates	[]float64	`json:"coordinates"`
+}
+
+type Properties struct {
+	Name		string		`json:"name"`
+}
+
 
 var addresses []IPAddress
 
@@ -24,6 +41,7 @@ func main() {
 	ReadCsv()
 	router := mux.NewRouter()
 	router.HandleFunc("/getAddress/{id}", GetAddress).Methods("GET")
+	router.HandleFunc("/getAddressesByBoundary/{swLat}/{swLon}/{neLat}/{neLon}", GetAddressesByBoundary).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
 
@@ -37,13 +55,20 @@ func ReadCsv() {
 		} else if error != nil {
 			log.Fatal(error)
 		}
-		addresses = append(addresses, IPAddress{
-			Network: line[0],
-			Latitude: line[7],
-			Longitude: line[8],
-		})
+		var lat, lon float64
+		lat, latErr := strconv.ParseFloat(line[7], 64)
+		lon, lonErr := strconv.ParseFloat(line[8], 64)
+		if latErr != nil || lonErr != nil {
+			// The first row has unparseable strings (cos they're words!), so better error handling here would be good
+			// log.Fatal("error on converting float: ", latErr)
+		} else {
+			addresses = append(addresses, IPAddress{
+				Network: line[0],
+				Latitude: lat,
+				Longitude: lon,
+			})
+		}
 	}
-	// addressJson, _ := json.Marshal(addresses)
 }
 
 func GetAddress(w http.ResponseWriter, r *http.Request) {
@@ -58,4 +83,42 @@ func GetAddress(w http.ResponseWriter, r *http.Request) {
 
 func FindAddressByIndex(index int) IPAddress {
 	return addresses[index]
+}
+
+func GetAddressesByBoundary(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	var swLat, swLon float64
+	swLat, sLatErr := strconv.ParseFloat(params["swLat"], 64)
+	swLon, sLonErr := strconv.ParseFloat(params["swLon"], 64)
+	neLat, nLatErr := strconv.ParseFloat(params["neLat"], 64)
+	neLon, nLonErr := strconv.ParseFloat(params["neLon"], 64)
+
+	var filtered []GeoJson
+	var responseGeoJson GeoJson
+
+
+	if sLatErr != nil || sLonErr != nil || nLatErr != nil || nLonErr != nil {
+		log.Fatal("error in getting address by boundary")
+	} else {
+		for _, e := range addresses {
+			if (e.Latitude > swLat && e.Latitude < neLat) && (e.Longitude > swLon && e.Longitude < neLon) {
+				filtered = append(filtered, GeoJson{
+					Type: "Feature",
+					Properties: Properties{
+						Name: e.Network,
+					},
+					Geometry: Geometry{
+						Type: "Point",
+						Coordinates: []float64{e.Longitude, e.Latitude},
+					},
+				})
+			}
+		}
+		responseGeoJson = GeoJson{
+			Type: "FeatureCollection",
+			Features: filtered,
+		}
+		json.NewEncoder(w).Encode(responseGeoJson)
+	}
+
 }
