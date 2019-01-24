@@ -11,5 +11,5 @@ map.on('render', (e) => {
     // TODO: Add debounce time here so it's not constantly updating boundaries
     console.log('event: ', e);
     const boundaries = e.target.getBounds();
-    console.log('bounds: ', boundaries._sw);
+    console.log('bounds: ', boundaries);
 })
