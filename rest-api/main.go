@@ -38,11 +38,12 @@ type Properties struct {
 var addresses []IPAddress
 
 func main() {
+	port := os.Getenv("PORT")
 	ReadCsv()
 	router := mux.NewRouter()
 	router.HandleFunc("/getAddress/{id}", GetAddress).Methods("GET", "OPTIONS")
 	router.HandleFunc("/getAddressesByBoundary/{swLat}/{swLon}/{neLat}/{neLon}", GetAddressesByBoundary).Methods("GET")
-	log.Fatal(http.ListenAndServe(":8000", router))
+	log.Fatal(http.ListenAndServe(":" + port, router))
 }
 
 func ReadCsv() {
